@@ -1,15 +1,21 @@
 package lt.makerspace.jmatrix;
 
+import com.googlecode.lanterna.SGR;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextCharacter;
+import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.screen.Screen;
 import org.eclipse.collections.api.map.primitive.CharIntMap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+
+import static java.lang.Math.abs;
+import static java.lang.Math.min;
+import static java.util.Objects.requireNonNullElse;
+import static lt.makerspace.jmatrix.Const.*;
 
 public class TextDisplay {
 
@@ -18,9 +24,10 @@ public class TextDisplay {
     private boolean textDirty = true;
     private float currentUpdate = 0;
 
-    private String text;
+    private String text = "";
     private List<int[]> lines = new ArrayList<>();
     private List<int[]> drawnLines = new ArrayList<>();
+
 
     private int borderWidth = 2;
     private int textWidth = 0;
@@ -31,13 +38,14 @@ public class TextDisplay {
     private TerminalSize terminalSize;
 
     public TextDisplay(String text) {
-        setText(Objects.requireNonNullElse(text, ""));
+        setText(text);
     }
 
 
     public void setText(String text) {
-        this.text = text;
-        this.textDirty = true;
+        if (!this.text.equals(this.text = requireNonNullElse(text, ""))) {
+            this.textDirty = true;
+        }
     }
 
     private void updateText() {
@@ -49,7 +57,7 @@ public class TextDisplay {
             .map(s -> s.split(" "))
             .toArray(String[][]::new);
 
-        CharIntMap index = Main.CHAR_INDEX;
+        CharIntMap index = CHAR_INDEX;
 
         for (int i = 0; i < strings.length; i++) {
             String[] line = strings[i];
@@ -75,7 +83,7 @@ public class TextDisplay {
 
         drawnLines.clear();
         ThreadLocalRandom r = ThreadLocalRandom.current();
-        int maxIndex = Main.RANDOM_ORDER_CHARS.length;
+        int maxIndex = RANDOM_ORDER_CHARS.length;
         for (var line : lines) {
             int[] randomized = new int[line.length];
             for (int i = 0; i < randomized.length; i++) {
@@ -127,6 +135,16 @@ public class TextDisplay {
                     }
                 }
 
+                ThreadLocalRandom r = ThreadLocalRandom.current();
+                int chances = min(text.length() / 10, 1);
+                for (int i = 0; i < chances; i++) {
+                    if (r.nextDouble() > 0.99) {
+                        int[] line = drawnLines.get(r.nextInt(drawnLines.size()));
+                        int index = r.nextInt(line.length);
+                        line[index] = r.nextInt(RANDOM_ORDER_CHARS.length);
+                    }
+                }
+
             } while ((currentUpdate += UPDATE_DT) < UPDATE_DT);
         }
     }
@@ -143,12 +161,13 @@ public class TextDisplay {
 
         for (int x = 0; x < boxWidth; x++) {
             for (int y = 0; y < boxHeight; y++) {
-                screen.setCharacter(boxX + x, boxY + y, Main.EMPTY_CHAR);
+                screen.setCharacter(boxX + x, boxY + y, EMPTY_CHAR);
             }
         }
 
         List<int[]> lines = drawnLines;
-        char[] chars = Main.RANDOM_ORDER_CHARS;
+        List<int[]> targetLines = this.lines;
+        char[] chars = RANDOM_ORDER_CHARS;
         for (int i = 0; i < lines.size(); i++) {
             int[] line = lines.get(i);
             for (int j = 0; j < line.length; j++) {
@@ -159,10 +178,31 @@ public class TextDisplay {
                 } else {
                     c = chars[lineCharIndex];
                 }
-                screen.setCharacter(textX + j, textY + i, TextCharacter.fromCharacter(c)[0]);
+                int distance = abs(lineCharIndex - targetLines.get(i)[j]);
+                screen.setCharacter(textX + j, textY + i, getColorForDistance(c, distance));
             }
         }
 
+    }
+
+    private TextCharacter getColorForDistance(char c, int distanceFromTarget) {
+        if (distanceFromTarget == 0) {
+            return Characters.fromCharacter(c);
+        }
+
+        TextColor color;
+        if (distanceFromTarget < 5) {
+            color = WHITE;
+        } else if (distanceFromTarget < 15) {
+            color = GREEN_1;
+        } else if (distanceFromTarget < 35) {
+            color = GREEN_2;
+        } else if (distanceFromTarget < 60) {
+            color = GREEN_3;
+        } else {
+            color = GREEN_4;
+        }
+        return Characters.fromCharacter(c, color, null);
     }
 
     private int findTextX() {

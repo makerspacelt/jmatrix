@@ -7,7 +7,6 @@ import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import org.eclipse.collections.api.factory.primitive.CharIntMaps;
-import org.eclipse.collections.api.map.primitive.CharIntMap;
 
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -16,34 +15,6 @@ import java.util.stream.IntStream;
 
 public class Main {
 
-    public static char[] CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz12345789ąčęėįšųūžĄČĘĖĮŠŲŪŽ/*-+`~!@#$%^&()_=[]{}\\|'\"<,>./?".toCharArray();
-
-    public static char[] RANDOM_ORDER_CHARS = Arrays.copyOf(CHARS, CHARS.length);
-
-    public static final CharIntMap CHAR_INDEX;
-
-    static {
-        ThreadLocalRandom r = ThreadLocalRandom.current();
-        char[] a = RANDOM_ORDER_CHARS;
-        for (int i = 0; i < a.length; i++) {
-            int randomIndexToSwap = r.nextInt(a.length);
-            char temp = a[randomIndexToSwap];
-            a[randomIndexToSwap] = a[i];
-            a[i] = temp;
-        }
-
-        List<Integer> ints = IntStream
-            .range(0, RANDOM_ORDER_CHARS.length)
-            .boxed()
-            .toList();
-
-
-        CHAR_INDEX = CharIntMaps.immutable.from(ints, i -> RANDOM_ORDER_CHARS[i], i -> i);
-    }
-
-    public static final TextCharacter EMPTY_CHAR = TextCharacter.fromCharacter(' ')[0];
-
-    private static final float NANOS_IN_SECOND = (float) 1e9;
     static TerminalSize terminalSize;
 
     public static void main(String[] args) throws Exception {
@@ -54,21 +25,25 @@ public class Main {
         TextDisplay textDisplay = new TextDisplay("Hello Matrix!");
         TextFetcher textFetcher = new TextFetcher(Executors.newSingleThreadScheduledExecutor(), textDisplay::setText);
 
+
         try (var t = new DefaultTerminalFactory().createTerminal()) {
             terminalSize = t.getTerminalSize();
 
             Screen screen = new TerminalScreen(t);
             screen.startScreen();
 
-            float targetDt = 1f / 60;
+            float targetDt = 1f / 60 / (float) t.getTerminalSize().getColumns() * (float) Const.REFERENCE_TERMINAL_WIDTH;
 
             float dt = 1f / 60;
+            float generator = 0;
+
             while (true) {
                 ThreadLocalRandom r = ThreadLocalRandom.current();
 //                if (r.nextDouble() > 0.983333333) {
 
-                float generator = dt;
-                while (generator > targetDt) {
+                generator += dt;
+
+                while (generator > 0) {
                     generator -= targetDt;
                     if (r.nextDouble() > 0.01) {
                         droplets.add(
@@ -108,10 +83,10 @@ public class Main {
 
                 long end = System.nanoTime();
 
-                dt = (end - start) / NANOS_IN_SECOND;
+                dt = (end - start) / Const.NANOS_IN_SECOND;
                 char[] chars = String.valueOf(dt * 1000).toCharArray();
                 for (int i = 0; i < chars.length; i++) {
-                    screen.setCharacter(i, 0, TextCharacter.fromCharacter(chars[i])[0]);
+                    screen.setCharacter(i, 0, Characters.fromCharacter(chars[i]));
                 }
                 screen.refresh();
 
@@ -123,7 +98,7 @@ public class Main {
                 }
 
                 end = System.nanoTime();
-                dt = (end - start) / NANOS_IN_SECOND;
+                dt = (end - start) / Const.NANOS_IN_SECOND;
             }
 
             screen.stopScreen();
