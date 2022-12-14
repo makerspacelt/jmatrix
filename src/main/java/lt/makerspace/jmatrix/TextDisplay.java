@@ -12,8 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static java.lang.Math.abs;
-import static java.lang.Math.min;
+import static java.lang.Math.*;
 import static java.util.Objects.requireNonNullElse;
 import static lt.makerspace.jmatrix.Const.*;
 
@@ -27,6 +26,9 @@ public class TextDisplay {
     private String text = "";
     private List<int[]> lines = new ArrayList<>();
     private List<int[]> drawnLines = new ArrayList<>();
+
+
+    private int textChangeRateMultiplier = 1;
 
 
     private int borderWidth = 2;
@@ -48,6 +50,17 @@ public class TextDisplay {
         }
     }
 
+    public int getTextChangeRateMultiplier() {
+        return textChangeRateMultiplier;
+    }
+
+    public void setTextChangeRateMultiplier(int textChangeRateMultiplier) {
+        if (textChangeRateMultiplier < 1) {
+            throw new IllegalArgumentException("Minimum allowed textChangeRateMultiplier: 1");
+        }
+        this.textChangeRateMultiplier = textChangeRateMultiplier;
+    }
+
     private void updateText() {
         lines.clear();
 
@@ -59,7 +72,9 @@ public class TextDisplay {
 
         CharIntMap index = CHAR_INDEX;
 
-        for (int i = 0; i < strings.length; i++) {
+        int maxLines = min(strings.length, terminalSize.getRows() - 10);
+
+        for (int i = 0; i < maxLines; i++) {
             String[] line = strings[i];
             for (int j = 0; j < line.length; j++) {
                 String word = line[j];
@@ -68,7 +83,11 @@ public class TextDisplay {
                 }
                 currentLineString.append(word);
                 if (currentLineString.length() > maxLineLength) {
-                    currentLineString.setLength(currentLineString.lastIndexOf(" "));
+                    int spaceIndex = currentLineString.lastIndexOf(" ");
+                    if(spaceIndex > 0) {
+                        currentLineString.setLength(spaceIndex);
+                    }
+
                     lines.add(mapStringToChars(currentLineString, index));
                     currentLineString.setLength(0);
                     currentLineString.append(word);
@@ -120,6 +139,7 @@ public class TextDisplay {
                 List<int[]> targetLines = lines;
                 List<int[]> currentLines = drawnLines;
 
+                int tc = textChangeRateMultiplier;
                 for (int i = 0; i < targetLines.size(); i++) {
                     int[] target = targetLines.get(i);
                     int[] current = currentLines.get(i);
@@ -127,9 +147,9 @@ public class TextDisplay {
                         int t = target[j];
                         int c = current[j];
                         if (t > c) {
-                            current[j] = c + 1;
+                            current[j] = min(t, c + tc);
                         } else if (t < c) {
-                            current[j] = c - 1;
+                            current[j] = max(t, c - tc);
                         }
 
                     }

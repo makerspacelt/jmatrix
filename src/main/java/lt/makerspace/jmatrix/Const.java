@@ -15,7 +15,7 @@ public class Const {
 
     public static final int REFERENCE_TERMINAL_WIDTH = 200;
 
-    public static char[] CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz12345789ąčęėįšųūžĄČĘĖĮŠŲŪŽ/*-+`~!@#$%^&()_=[]{}\\|'\"<,>./?".toCharArray();
+    public static char[] CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123457890ąčęėįšųūžĄČĘĖĮŠŲŪŽ/*-+`~!@#$%^&()_=[]{}\\|'\"<,>./?:".toCharArray();
     public static char[] RANDOM_ORDER_CHARS = Arrays.copyOf(CHARS, CHARS.length);
     public static final CharIntMap CHAR_INDEX;
 
