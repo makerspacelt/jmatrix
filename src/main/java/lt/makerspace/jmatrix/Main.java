@@ -27,6 +27,9 @@ public class Main implements Callable<Integer> {
         """)
     private String display;
 
+    @Option(names = "--imageSize", defaultValue = "FULL")
+    private FileText.ImageSize imageSize;
+
     @Override
     public Integer call() throws Exception {
 
@@ -43,7 +46,7 @@ public class Main implements Callable<Integer> {
             TextUpdater updater;
             try {
                 Path path = Path.of(display);
-                updater = new FileText(path, ses);
+                updater = new FileText(path, imageSize, ses);
             } catch (Exception e) {
                 updater = switch (display) {
                     case "clock" -> new LocalDateTimeText(ses);

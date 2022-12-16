@@ -4,7 +4,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,10 +16,13 @@ import static java.nio.file.StandardWatchEventKinds.*;
 
 public class FileText implements TextUpdater {
 
-    private static final char BLACK = '@';
-    private static final char WHITE = ' ';
+    private static final char TOP = '▀';
+    private static final char BOTTOM = '▄';
+    private static final char BLACK = '█';
+    private static final char WHITE = ' ';
 
     private final Path file;
+    private final ImageSize size;
     private final ScheduledExecutorService ses;
 
 
@@ -29,8 +31,9 @@ public class FileText implements TextUpdater {
 
     private ScheduledFuture<?> future;
 
-    public FileText(Path file, ScheduledExecutorService ses) throws IOException {
+    public FileText(Path file, ImageSize size, ScheduledExecutorService ses) throws IOException {
         this.file = file;
+        this.size = size;
         this.ses = ses;
         updateText();
 
@@ -77,19 +80,9 @@ public class FileText implements TextUpdater {
             int[] pixels = image.getRGB(0, 0, w, h, null, 0, w);
 
             StringBuilder sb = new StringBuilder();
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    int argb = pixels[y * w + x];
-                    int r = (argb >>> 16) & 0xFF;
-                    int g = (argb >>> 8) & 0xFF;
-                    int b = (argb >>> 0) & 0xFF;
-                    if (r < 50 && g < 50 && b < 50) {
-                        sb.append(BLACK);
-                    } else {
-                        sb.append(WHITE);
-                    }
-                }
-                sb.append('\n');
+            switch (size) {
+                case FULL -> drawFullSize(w, h, pixels, sb);
+                case HALF -> drawHalfSize(w, h, pixels, sb);
             }
             return sb.toString();
 
@@ -102,6 +95,62 @@ public class FileText implements TextUpdater {
                 return e2.getMessage() != null ? e2.getMessage() : e2.getClass().getSimpleName();
             }
         }
+    }
+
+    private static void drawFullSize(int w, int h, int[] pixels, StringBuilder sb) {
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                boolean isBlack = isPixelBlack(x, y, w, pixels);
+                if (isBlack) {
+                    sb.append(BLACK).append(BLACK);
+                } else {
+                    sb.append(WHITE).append(WHITE);
+                }
+            }
+            sb.append('\n');
+        }
+    }
+
+    private static void drawHalfSize(int w, int h, int[] pixels, StringBuilder sb) {
+        int hh = h / 2;
+        for (int y = 0; y < hh; y++) {
+            for (int x = 0; x < w; x++) {
+                int y1 = y * 2;
+                int y2 = y * 2 + 1;
+                boolean topBlack = isPixelBlack(x, y1, w, pixels);
+                boolean bottomBlack = isPixelBlack(x, y2, w, pixels);
+                char pixel = '?';
+                if (topBlack && bottomBlack) {
+                    sb.append(BLACK);
+                } else if (!topBlack && bottomBlack) {
+                    sb.append(BOTTOM);
+                } else if (topBlack && !bottomBlack) {
+                    sb.append(TOP);
+                } else {
+                    sb.append(WHITE);
+                }
+            }
+            sb.append('\n');
+        }
+        if (h % 2 != 0) {
+
+        }
+    }
+
+    private static int getPixel(int x, int y, int w, int[] pixels) {
+        return pixels[y * w + x];
+    }
+
+
+    private static boolean isPixelBlack(int x, int y, int w, int[] pixels) {
+        return isPixelBlack(getPixel(x, y, w, pixels));
+    }
+
+    private static boolean isPixelBlack(int argb) {
+        int r = (argb >>> 16) & 0xFF;
+        int g = (argb >>> 8) & 0xFF;
+        int b = (argb) & 0xFF;
+        return r < 50 && g < 50 && b < 50;
     }
 
     @Override
@@ -122,5 +171,12 @@ public class FileText implements TextUpdater {
             future.cancel(true);
             future = null;
         }
+    }
+
+    public enum ImageSize {
+
+        FULL,
+        HALF
+
     }
 }

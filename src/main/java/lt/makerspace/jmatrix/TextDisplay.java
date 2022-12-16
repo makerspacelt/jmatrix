@@ -1,6 +1,5 @@
 package lt.makerspace.jmatrix;
 
-import com.googlecode.lanterna.SGR;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextCharacter;
 import com.googlecode.lanterna.TextColor;
@@ -20,12 +19,16 @@ public class TextDisplay {
 
     private static final float UPDATE_DT = 16f / 1000f;
 
+    private record CharMap(int[] targetChars, char[] trueChars) {
+    }
+
     private boolean textDirty = true;
     private float currentUpdate = 0;
 
     private String text = "";
-    private List<int[]> lines = new ArrayList<>();
+    private List<int[]> targetLines = new ArrayList<>();
     private List<int[]> drawnLines = new ArrayList<>();
+    private List<char[]> trueChars = new ArrayList<>();
 
 
     private int textChangeRateMultiplier = 1;
@@ -62,7 +65,8 @@ public class TextDisplay {
     }
 
     private void updateText() {
-        lines.clear();
+        targetLines.clear();
+        trueChars.clear();
 
         StringBuilder currentLineString = new StringBuilder(64);
 
@@ -72,7 +76,7 @@ public class TextDisplay {
 
         CharIntMap index = CHAR_INDEX;
 
-        int maxLines = min(strings.length, terminalSize.getRows() - 10);
+        int maxLines = min(strings.length, terminalSize.getRows() - 6);
 
         for (int i = 0; i < maxLines; i++) {
             String[] line = strings[i];
@@ -84,26 +88,30 @@ public class TextDisplay {
                 currentLineString.append(word);
                 if (currentLineString.length() > maxLineLength) {
                     int spaceIndex = currentLineString.lastIndexOf(" ");
-                    if(spaceIndex > 0) {
+                    if (spaceIndex > 0) {
                         currentLineString.setLength(spaceIndex);
                     }
 
-                    lines.add(mapStringToChars(currentLineString, index));
+                    CharMap mappedChars = mapStringToChars(currentLineString, index);
+                    targetLines.add(mappedChars.targetChars());
+                    trueChars.add(mappedChars.trueChars());
                     currentLineString.setLength(0);
                     currentLineString.append(word);
                 }
             }
-            lines.add(mapStringToChars(currentLineString, index));
+            CharMap mappedChars = mapStringToChars(currentLineString, index);
+            targetLines.add(mappedChars.targetChars());
+            trueChars.add(mappedChars.trueChars());
             currentLineString.setLength(0);
         }
 
-        this.textHeight = lines.size();
-        this.textWidth = lines.stream().mapToInt(a -> a.length).max().orElse(0);
+        this.textHeight = targetLines.size();
+        this.textWidth = targetLines.stream().mapToInt(a -> a.length).max().orElse(0);
 
         drawnLines.clear();
         ThreadLocalRandom r = ThreadLocalRandom.current();
         int maxIndex = RANDOM_ORDER_CHARS.length;
-        for (var line : lines) {
+        for (var line : targetLines) {
             int[] randomized = new int[line.length];
             for (int i = 0; i < randomized.length; i++) {
                 randomized[i] = r.nextInt(maxIndex);
@@ -114,7 +122,7 @@ public class TextDisplay {
         textDirty = false;
     }
 
-    private static int[] mapStringToChars(StringBuilder currentLineString, CharIntMap index) {
+    private static CharMap mapStringToChars(StringBuilder currentLineString, CharIntMap index) {
         char[] currentLine = currentLineString.toString().toCharArray();
         int[] charIndexes = new int[currentLine.length];
         for (int c = 0; c < currentLine.length; c++) {
@@ -122,10 +130,10 @@ public class TextDisplay {
             if (currentChar == ' ') {
                 charIndexes[c] = -1;
             } else {
-                charIndexes[c] = index.get(currentChar);
+                charIndexes[c] = index.getIfAbsent(currentChar, -1);
             }
         }
-        return charIndexes;
+        return new CharMap(charIndexes, currentLine);
     }
 
     public void update(float dt, TerminalSize size) {
@@ -136,7 +144,7 @@ public class TextDisplay {
 
         if ((currentUpdate -= dt) < 0) {
             do {
-                List<int[]> targetLines = lines;
+                List<int[]> targetLines = this.targetLines;
                 List<int[]> currentLines = drawnLines;
 
                 int tc = textChangeRateMultiplier;
@@ -185,20 +193,23 @@ public class TextDisplay {
             }
         }
 
-        List<int[]> lines = drawnLines;
-        List<int[]> targetLines = this.lines;
+        List<int[]> dl = this.drawnLines;
+        List<int[]> tl = this.targetLines;
+        List<char[]> tc = this.trueChars;
         char[] chars = RANDOM_ORDER_CHARS;
-        for (int i = 0; i < lines.size(); i++) {
-            int[] line = lines.get(i);
+        for (int i = 0; i < dl.size(); i++) {
+            int[] line = dl.get(i);
+            char[] lineTc = tc.get(i);
+
             for (int j = 0; j < line.length; j++) {
                 int lineCharIndex = line[j];
                 char c;
                 if (lineCharIndex < 0) {
-                    c = ' ';
+                    c = lineTc[j];
                 } else {
                     c = chars[lineCharIndex];
                 }
-                int distance = abs(lineCharIndex - targetLines.get(i)[j]);
+                int distance = abs(lineCharIndex - tl.get(i)[j]);
                 screen.setCharacter(textX + j, textY + i, getColorForDistance(c, distance));
             }
         }

@@ -84,73 +84,77 @@ public class Matrix {
                 float generator = 0;
 
                 while (running) {
-                    ThreadLocalRandom r = ThreadLocalRandom.current();
+                    try {
+                        ThreadLocalRandom r = ThreadLocalRandom.current();
 
-                    generator += dt;
+                        generator += dt;
 
-                    while (generator > 0) {
-                        generator -= targetDt;
-                        if (r.nextDouble() > 0.01) {
-                            droplets.add(
-                                new Droplet(
-                                    r.nextInt(terminalSize.getColumns()),
-                                    r.nextInt(5, 15),
-                                    getRandomizedVelocity(r)
-                                )
-                                    .onExit(absolete::add)
-                            );
+                        while (generator > 0) {
+                            generator -= targetDt;
+                            if (r.nextDouble() > 0.01) {
+                                droplets.add(
+                                    new Droplet(
+                                        r.nextInt(terminalSize.getColumns()),
+                                        r.nextInt(5, 15),
+                                        getRandomizedVelocity(r)
+                                    )
+                                        .onExit(absolete::add)
+                                );
+                            }
                         }
-                    }
 
 
-                    long start = System.nanoTime();
+                        long start = System.nanoTime();
 
-                    for (var droplet : droplets) {
-                        droplet.update(dt, terminalSize);
-                        droplet.render(screen);
-                    }
-
-                    droplets.removeIf(absolete::contains);
-                    absolete.clear();
-
-                    if (textDisplay != null) {
-                        textDisplay.update(dt, terminalSize);
-                        textDisplay.render(screen);
-                    }
-
-                    KeyStroke keyStroke = screen.pollInput();
-                    if (keyStroke != null) {
-                        if (keyStroke.getCharacter() != null && (keyStroke.getCharacter() == 'c' || keyStroke.getCharacter() == 'C') && keyStroke.isCtrlDown()) {
-                            break;
+                        for (var droplet : droplets) {
+                            droplet.update(dt, terminalSize);
+                            droplet.render(screen);
                         }
-                    }
 
-                    screen.refresh();
+                        droplets.removeIf(absolete::contains);
+                        absolete.clear();
 
-                    long end = System.nanoTime();
-
-                    if (showUpdateTime) {
-                        dt = (end - start) / Const.NANOS_IN_SECOND;
-                        char[] chars = String.valueOf(dt * 1000).toCharArray();
-                        for (int i = 0; i < chars.length; i++) {
-                            screen.setCharacter(i, 0, Characters.fromCharacter(chars[i]));
+                        if (textDisplay != null) {
+                            textDisplay.update(dt, terminalSize);
+                            textDisplay.render(screen);
                         }
+
+                        KeyStroke keyStroke = screen.pollInput();
+                        if (keyStroke != null) {
+                            if (keyStroke.getCharacter() != null && (keyStroke.getCharacter() == 'c' || keyStroke.getCharacter() == 'C') && keyStroke.isCtrlDown()) {
+                                break;
+                            }
+                        }
+
                         screen.refresh();
-                    }
 
-                    long nanosToSleep = (16_666_666L - (end - start));
-                    long millisToSleep = nanosToSleep / 1_000_000;
-                    nanosToSleep -= millisToSleep * 1_000_000;
-                    if (millisToSleep >= 0 && (nanosToSleep >= 0 && nanosToSleep <= 999999)) {
-                        Thread.sleep(millisToSleep, (int) nanosToSleep);
-                    }
+                        long end = System.nanoTime();
 
-                    end = System.nanoTime();
-                    dt = (end - start) / Const.NANOS_IN_SECOND;
+                        if (showUpdateTime) {
+                            dt = (end - start) / Const.NANOS_IN_SECOND;
+                            char[] chars = String.valueOf(dt * 1000).toCharArray();
+                            for (int i = 0; i < chars.length; i++) {
+                                screen.setCharacter(i, 0, Characters.fromCharacter(chars[i]));
+                            }
+                            screen.refresh();
+                        }
+
+                        long nanosToSleep = (16_666_666L - (end - start));
+                        long millisToSleep = nanosToSleep / 1_000_000;
+                        nanosToSleep -= millisToSleep * 1_000_000;
+                        if (millisToSleep >= 0 && (nanosToSleep >= 0 && nanosToSleep <= 999999)) {
+                            Thread.sleep(millisToSleep, (int) nanosToSleep);
+                        }
+
+                        end = System.nanoTime();
+                        dt = (end - start) / Const.NANOS_IN_SECOND;
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 screen.stopScreen();
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             } finally {
                 exited = true;
