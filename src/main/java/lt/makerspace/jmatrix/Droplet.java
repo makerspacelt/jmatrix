@@ -1,24 +1,25 @@
 package lt.makerspace.jmatrix;
 
-import com.googlecode.lanterna.SGR;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextCharacter;
-import com.googlecode.lanterna.TextColor.ANSI;
 import com.googlecode.lanterna.screen.Screen;
+import lt.makerspace.jmatrix.SingleWidthCharacter.CharColor;
 
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 import static java.lang.Math.abs;
-import static lt.makerspace.jmatrix.Const.*;
-import static lt.makerspace.jmatrix.Const.GREEN_2;
-import static lt.makerspace.jmatrix.Const.WHITE;
+import static lt.makerspace.jmatrix.Const.CHARS;
+import static lt.makerspace.jmatrix.Const.EMPTY_CHAR;
+import static lt.makerspace.jmatrix.SingleWidthCharacter.CharColor.WHITE;
+import static lt.makerspace.jmatrix.SingleWidthCharacter.withAttributes;
+import static lt.makerspace.jmatrix.SingleWidthCharacter.withColor;
 
 public class Droplet {
 
     private static TextCharacter getNextChar(Random r) {
-        return Characters.fromCharacter(CHARS[r.nextInt(CHARS.length)], GREEN_1, ANSI.DEFAULT);
+        return SingleWidthCharacter.getChar(CharColor.GREEN_1, false, CHARS[r.nextInt(CHARS.length)]);
     }
 
     private int x;
@@ -44,7 +45,7 @@ public class Droplet {
         for (int i = 0; i < length; i++) {
             this.characters[i] = getNextChar(r);
         }
-        characters[0] = characters[0].withForegroundColor(WHITE);
+        characters[0] = withColor(characters[0], WHITE);
     }
 
     public void update(float dt, TerminalSize size) {
@@ -57,16 +58,12 @@ public class Droplet {
         for (int i = length - 1; i >= 1; i--) {
             characters[i] = characters[i - 1];
         }
-        characters[1] = characters[1]
-            .withForegroundColor(GREEN_1)
-            .withoutModifier(SGR.BOLD);
-        characters[0] = getNextChar(ThreadLocalRandom.current())
-            .withForegroundColor(WHITE)
-            .withModifier(SGR.BOLD);
+        characters[1] = withAttributes(characters[1], CharColor.GREEN_1, false);
+        characters[0] = withAttributes(getNextChar(ThreadLocalRandom.current()), WHITE, true);
 
-        characters[length - 3] = characters[length - 3].withForegroundColor(GREEN_2);
-        characters[length - 2] = characters[length - 2].withForegroundColor(GREEN_3);
-        characters[length - 1] = characters[length - 1].withForegroundColor(GREEN_4);
+        characters[length - 3] = withColor(characters[length - 3], CharColor.GREEN_2);
+        characters[length - 2] = withColor(characters[length - 2], CharColor.GREEN_3);
+        characters[length - 1] = withColor(characters[length - 1], CharColor.GREEN_4);
 
         if (y - length - 1 > size.getRows()) {
             onExit.accept(this);

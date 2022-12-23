@@ -30,6 +30,12 @@ public class Main implements Callable<Integer> {
     @Option(names = "--imageSize", defaultValue = "FULL")
     private FileText.ImageSize imageSize;
 
+    @Option(names = {"--softCap", "-s"}, defaultValue = "500")
+    private int softCap;
+
+    @Option(names = {"--hardCap", "-h"}, defaultValue = "2000")
+    private int hardCap;
+
     @Override
     public Integer call() throws Exception {
 
@@ -56,6 +62,9 @@ public class Main implements Callable<Integer> {
             }
             matrix = new Matrix(ses, updater);
         }
+        matrix.setShowUpdateTime(showTimePerFrame);
+        matrix.setSoftCap(softCap);
+        matrix.setHardCap(hardCap);
 
         matrix.start();
         while (!matrix.isExited()) {

@@ -4,6 +4,7 @@ import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextCharacter;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.screen.Screen;
+import lt.makerspace.jmatrix.SingleWidthCharacter.CharColor;
 import org.eclipse.collections.api.map.primitive.CharIntMap;
 
 import java.util.ArrayList;
@@ -37,8 +38,6 @@ public class TextDisplay {
     private int borderWidth = 2;
     private int textWidth = 0;
     private int textHeight = 0;
-
-    private int maxLineLength = 64;
 
     private TerminalSize terminalSize;
 
@@ -86,6 +85,7 @@ public class TextDisplay {
                     currentLineString.append(' ');
                 }
                 currentLineString.append(word);
+                int maxLineLength = 64;
                 if (currentLineString.length() > maxLineLength) {
                     int spaceIndex = currentLineString.lastIndexOf(" ");
                     if (spaceIndex > 0) {
@@ -218,22 +218,22 @@ public class TextDisplay {
 
     private TextCharacter getColorForDistance(char c, int distanceFromTarget) {
         if (distanceFromTarget == 0) {
-            return Characters.fromCharacter(c);
+            return SingleWidthCharacter.getChar(CharColor.GREEN_1, false, c);
         }
 
-        TextColor color;
+        CharColor color;
         if (distanceFromTarget < 5) {
-            color = WHITE;
+            color = CharColor.WHITE;
         } else if (distanceFromTarget < 15) {
-            color = GREEN_1;
+            color = CharColor.GREEN_1;
         } else if (distanceFromTarget < 35) {
-            color = GREEN_2;
+            color = CharColor.GREEN_2;
         } else if (distanceFromTarget < 60) {
-            color = GREEN_3;
+            color = CharColor.GREEN_3;
         } else {
-            color = GREEN_4;
+            color = CharColor.GREEN_4;
         }
-        return Characters.fromCharacter(c, color, null);
+        return SingleWidthCharacter.getChar(color, false, c);
     }
 
     private int findTextX() {
