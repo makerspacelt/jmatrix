@@ -1,10 +1,16 @@
 package lt.makerspace.jmatrix;
 
+import com.googlecode.lanterna.TerminalSize;
+import lt.makerspace.jmatrix.cli.TerminalSizeConverter;
 import lt.makerspace.jmatrix.textupdater.*;
+import lt.makerspace.jmatrix.textupdater.FileText.ImageSize;
+import org.apache.commons.lang3.StringUtils;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.io.*;
+import java.net.Socket;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
@@ -28,13 +34,23 @@ public class Main implements Callable<Integer> {
     private String display;
 
     @Option(names = "--imageSize", defaultValue = "FULL")
-    private FileText.ImageSize imageSize;
+    private ImageSize imageSize;
 
     @Option(names = {"--softCap", "-s"}, defaultValue = "500")
     private int softCap;
 
     @Option(names = {"--hardCap", "-h"}, defaultValue = "2000")
     private int hardCap;
+
+    @Option(names = {"--matrixSize", "-S"}, converter = TerminalSizeConverter.class, description = """
+        Kokio dydžio turėtų būti matrica. Naudoti jei nepavyksta nustatyti automatiškai.
+        """)
+    private TerminalSize sizeOverride;
+
+    @Option(names = {"--tty"}, description = """
+        Failas arba tcp url (host:port) kuris bus naudojamas kaip terminalas
+        """)
+    private String tty;
 
     @Override
     public Integer call() throws Exception {
@@ -45,9 +61,26 @@ public class Main implements Callable<Integer> {
             text = false;
         }
 
+
+        InputStream in = System.in;
+        OutputStream out = System.out;
+
+        if (StringUtils.isNotBlank(tty)) {
+            File file = new File(tty);
+            if (file.exists()) {
+                in = new FileInputStream(file);
+                out = new FileOutputStream(file);
+            } else {
+                String[] split = tty.split(":");
+                Socket socket = new Socket(split[0], Integer.parseInt(split[1]));
+                in = socket.getInputStream();
+                out = socket.getOutputStream();
+            }
+        }
+
         Matrix matrix;
         if (!text) {
-            matrix = new Matrix(ses, null);
+            matrix = new Matrix(ses, null, in, out);
         } else {
             TextUpdater updater;
             try {
@@ -60,11 +93,14 @@ public class Main implements Callable<Integer> {
                     default -> new ConstantText(display);
                 };
             }
-            matrix = new Matrix(ses, updater);
+            matrix = new Matrix(ses, updater, in, out);
         }
         matrix.setShowUpdateTime(showTimePerFrame);
         matrix.setSoftCap(softCap);
         matrix.setHardCap(hardCap);
+        if (sizeOverride != null) {
+            matrix.setSizeOverride(sizeOverride);
+        }
 
         matrix.start();
         while (!matrix.isExited()) {

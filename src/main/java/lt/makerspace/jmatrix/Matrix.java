@@ -6,37 +6,57 @@ import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.Screen.RefreshType;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
+import lombok.Getter;
+import lombok.Setter;
 import lt.makerspace.jmatrix.textupdater.LocalDateTimeText;
 import lt.makerspace.jmatrix.textupdater.Subscription;
 import lt.makerspace.jmatrix.textupdater.TextUpdater;
+import lt.makerspace.jmatrix.util.MatrixTerminal;
 import lt.makerspace.jmatrix.util.SwitchedOutStream;
-import org.apache.commons.lang3.StringUtils;
 
-import java.io.BufferedOutputStream;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static java.lang.String.valueOf;
 import static org.apache.commons.lang3.StringUtils.rightPad;
 
 public class Matrix {
 
+    @Getter
+    @Setter
     private int softCap = 500;
+    @Getter
+    @Setter
     private int hardCap = 2000;
 
+    @Getter
+    @Setter
+    private TerminalSize sizeOverride;
+
+
     private boolean running = true;
+
+    @Getter
     private boolean exited = false;
 
+    @Getter
+    @Setter
     private boolean showUpdateTime = false;
 
     private final Executor exec;
     private final TextUpdater textUpdater;
 
-    public Matrix(Executor exec, TextUpdater textUpdater) {
+    private final InputStream ttyIn;
+    private final OutputStream ttyOut;
+
+    public Matrix(Executor exec, TextUpdater textUpdater, InputStream ttyIn, OutputStream ttyOut) {
         this.exec = exec;
         this.textUpdater = textUpdater;
+
+        this.ttyIn = ttyIn;
+        this.ttyOut = ttyOut;
     }
 
     public void start() {
@@ -45,34 +65,6 @@ public class Matrix {
 
     public void stop() {
         running = false;
-    }
-
-    public boolean isExited() {
-        return exited;
-    }
-
-    public boolean isShowUpdateTime() {
-        return showUpdateTime;
-    }
-
-    public void setShowUpdateTime(boolean showUpdateTime) {
-        this.showUpdateTime = showUpdateTime;
-    }
-
-    public int getSoftCap() {
-        return softCap;
-    }
-
-    public void setSoftCap(int softCap) {
-        this.softCap = softCap;
-    }
-
-    public int getHardCap() {
-        return hardCap;
-    }
-
-    public void setHardCap(int hardCap) {
-        this.hardCap = hardCap;
     }
 
     private class MatrixRenderer implements Runnable {
@@ -100,16 +92,23 @@ public class Matrix {
                 textDisplay = null;
             }
 
+            BufferedOutputStream bOut = new BufferedOutputStream(ttyOut, 1024 * 1024);
 
-            BufferedOutputStream bos = new BufferedOutputStream(System.out, 1024 * 1024);
+            SwitchedOutStream sOut = new SwitchedOutStream(ttyOut, bOut);
 
-            SwitchedOutStream sos = new SwitchedOutStream(System.out, bos);
-
-            try (var t = new DefaultTerminalFactory(
-                sos,
-                System.in,
+            DefaultTerminalFactory factory = new DefaultTerminalFactory(
+                sOut,
+                ttyIn,
                 Charset.defaultCharset()
-            ).createTerminal()) {
+            );
+//            factory.setInputTimeout(100);
+
+            try (MatrixTerminal t = new MatrixTerminal(factory.createTerminal())) {
+                if (sizeOverride != null) {
+                    t.setSizeOverride(sizeOverride);
+                }
+
+
                 terminalSize = t.getTerminalSize();
 
                 Screen screen = new TerminalScreen(t, SingleWidthCharacter.getChar(' '));
@@ -120,7 +119,7 @@ public class Matrix {
                 float dt = 1f / 60;
                 float generator = 0;
 
-                sos.second();
+                sOut.second();
 
                 while (running) {
                     try {
@@ -149,7 +148,7 @@ public class Matrix {
                         }
 
                         screen.refresh(RefreshType.DELTA);
-                        bos.flush();
+                        bOut.flush();
 
                         long end = System.nanoTime();
 
