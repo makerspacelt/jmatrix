@@ -12,6 +12,9 @@ import picocli.CommandLine.Parameters;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Path;
+import java.sql.Array;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -24,14 +27,14 @@ public class Main implements Callable<Integer> {
     @Option(names = {"--showTimePerFrame", "-T"}, defaultValue = "false")
     private boolean showTimePerFrame;
 
-    @Parameters(index = "0", arity = "0..1", description = """
+    @Parameters(index = "0", arity = "0..*", description = """
                 Pagal prioritetą:
                 filePath - rodomas failo turinys arba juodai baltas paveiklėlis
                 clock - rodomas paprastas laikrodis
                 chucknorris - testavimui, faktai apie chuck norris facts
                 kitas tekstas - rodomas nesikeičiantis tekstas
         """)
-    private String display;
+    private String[] display;
 
     @Option(names = "--imageSize", defaultValue = "FULL")
     private ImageSize imageSize;
@@ -57,10 +60,9 @@ public class Main implements Callable<Integer> {
 
         ScheduledExecutorService ses = Executors.newScheduledThreadPool(3);
 
-        if (display == null || display.isBlank()) {
+        if (StringUtils.isAllBlank(display)) {
             text = false;
         }
-
 
         InputStream in = System.in;
         OutputStream out = System.out;
@@ -82,18 +84,15 @@ public class Main implements Callable<Integer> {
         if (!text) {
             matrix = new Matrix(ses, null, in, out);
         } else {
-            TextUpdater updater;
-            try {
-                Path path = Path.of(display);
-                updater = new FileText(path, imageSize, ses);
-            } catch (Exception e) {
-                updater = switch (display) {
-                    case "clock" -> new LocalDateTimeText(ses);
-                    case "chucknorris" -> new ChuckNorrisText(ses);
-                    default -> new ConstantText(display);
-                };
+            List<TextUpdater> updaters = new ArrayList<>();
+            if (display.length == 1) {
+                updaters.add(parseTextUpdater(display[0], ses));
+            } else {
+                for (var displaySpec : display) {
+                    updaters.add(parseTextUpdater(displaySpec, ses));
+                }
             }
-            matrix = new Matrix(ses, updater, in, out);
+            matrix = new Matrix(ses, updaters, in, out);
         }
         matrix.setShowUpdateTime(showTimePerFrame);
         matrix.setSoftCap(softCap);
@@ -108,6 +107,21 @@ public class Main implements Callable<Integer> {
         }
 
         return 0;
+    }
+
+    private TextUpdater parseTextUpdater(String displaySpec, ScheduledExecutorService ses) {
+        TextUpdater updater;
+        try {
+            Path path = Path.of(displaySpec);
+            updater = new FileText(path, imageSize, ses);
+        } catch (Exception e) {
+            updater = switch (displaySpec) {
+                case "clock" -> new LocalDateTimeText(ses);
+                case "chucknorris" -> new ChuckNorrisText(ses);
+                default -> new ConstantText(displaySpec);
+            };
+        }
+        return updater;
     }
 
     public static void main(String[] args) throws Exception {

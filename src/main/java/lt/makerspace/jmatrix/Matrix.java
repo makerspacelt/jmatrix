@@ -46,14 +46,14 @@ public class Matrix {
     private boolean showUpdateTime = false;
 
     private final Executor exec;
-    private final TextUpdater textUpdater;
+    private final List<TextUpdater> textUpdaters;
 
     private final InputStream ttyIn;
     private final OutputStream ttyOut;
 
-    public Matrix(Executor exec, TextUpdater textUpdater, InputStream ttyIn, OutputStream ttyOut) {
+    public Matrix(Executor exec, List<TextUpdater> textUpdaters, InputStream ttyIn, OutputStream ttyOut) {
         this.exec = exec;
-        this.textUpdater = textUpdater;
+        this.textUpdaters = new ArrayList<>(textUpdaters);
 
         this.ttyIn = ttyIn;
         this.ttyOut = ttyOut;
@@ -70,7 +70,7 @@ public class Matrix {
     private class MatrixRenderer implements Runnable {
         private TerminalSize terminalSize;
 
-        private Subscription textSubscription;
+        private final List<Subscription> textSubscriptions = new ArrayList<>();
 
         private final Random r = new Random();
 
@@ -81,16 +81,16 @@ public class Matrix {
 
         public void run() {
 
-            TextDisplay textDisplay;
-            if (textUpdater != null) {
-                textDisplay = new TextDisplay("Hello Matrix!");
-                if (textUpdater instanceof LocalDateTimeText) {
-                    textDisplay.setTextChangeRateMultiplier(10);
-                }
-                textSubscription = textUpdater.subscribe(textDisplay::setText);
-            } else {
-                textDisplay = null;
-            }
+            TextDisplay[] textDisplays = textUpdaters.stream()
+                .map(textUpdater -> {
+                    var td = new TextDisplay("Working");
+                    if (textUpdater instanceof LocalDateTimeText) {
+                        td.setTextChangeRateMultiplier(10);
+                    }
+                    textSubscriptions.add(textUpdater.subscribe(td::setText));
+                    return td;
+                })
+                .toArray(TextDisplay[]::new);
 
             BufferedOutputStream bOut = new BufferedOutputStream(ttyOut, 1024 * 1024);
 
@@ -103,7 +103,7 @@ public class Matrix {
             );
 //            factory.setInputTimeout(100);
 
-            try (MatrixTerminal t = new MatrixTerminal(factory.createTerminal())) {
+            try (MatrixTerminal t = new MatrixTerminal(factory.createHeadlessTerminal())) {
                 if (sizeOverride != null) {
                     t.setSizeOverride(sizeOverride);
                 }
@@ -135,9 +135,21 @@ public class Matrix {
                         droplets.removeIf(absolete::contains);
                         absolete.clear();
 
-                        if (textDisplay != null) {
-                            textDisplay.update(dt, terminalSize);
-                            textDisplay.render(screen);
+                        if (textDisplays.length > 1) {
+                            int h0 = textDisplays[0].getTextHeight();
+                            int h1 = textDisplays[1].getTextHeight();
+                            int totalHeight = h0 + h1;
+
+                            int o0 = -h1 / 2 - 1;
+                            int o1 = h0 / 2 + 1;
+
+
+                            textDisplays[0].setYShift(o0);
+                            textDisplays[1].setYShift(o1);
+                        }
+                        for (var td : textDisplays) {
+                            td.update(dt, terminalSize);
+                            td.render(screen);
                         }
 
                         KeyStroke keyStroke = screen.pollInput();
@@ -175,9 +187,7 @@ public class Matrix {
                 e.printStackTrace();
             } finally {
                 exited = true;
-                if (textSubscription != null) {
-                    textSubscription.unsubscribe();
-                }
+                textSubscriptions.forEach(Subscription::unsubscribe);
             }
         }
 

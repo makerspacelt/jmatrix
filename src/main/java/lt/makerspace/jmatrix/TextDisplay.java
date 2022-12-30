@@ -4,6 +4,8 @@ import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextCharacter;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.screen.Screen;
+import lombok.Getter;
+import lombok.Setter;
 import lt.makerspace.jmatrix.SingleWidthCharacter.CharColor;
 import org.eclipse.collections.api.map.primitive.CharIntMap;
 
@@ -32,11 +34,22 @@ public class TextDisplay {
     private List<char[]> trueChars = new ArrayList<>();
 
 
+    @Getter
     private int textChangeRateMultiplier = 1;
+
+    @Getter @Setter
+    private int xShift = 0;
+
+    @Getter @Setter
+    private int yShift = 0;
 
 
     private int borderWidth = 2;
+
+    @Getter
     private int textWidth = 0;
+
+    @Getter
     private int textHeight = 0;
 
     private TerminalSize terminalSize;
@@ -50,10 +63,6 @@ public class TextDisplay {
         if (!this.text.equals(this.text = requireNonNullElse(text, ""))) {
             this.textDirty = true;
         }
-    }
-
-    public int getTextChangeRateMultiplier() {
-        return textChangeRateMultiplier;
     }
 
     public void setTextChangeRateMultiplier(int textChangeRateMultiplier) {
@@ -168,6 +177,10 @@ public class TextDisplay {
                 for (int i = 0; i < chances; i++) {
                     if (r.nextDouble() > 0.99) {
                         int[] line = drawnLines.get(r.nextInt(drawnLines.size()));
+                        if (line.length == 0) {
+                            continue;
+                        }
+
                         int index = r.nextInt(line.length);
                         line[index] = r.nextInt(RANDOM_ORDER_CHARS.length);
                     }
@@ -237,10 +250,10 @@ public class TextDisplay {
     }
 
     private int findTextX() {
-        return (terminalSize.getColumns() - textWidth) / 2;
+        return (terminalSize.getColumns() - textWidth) / 2 + xShift;
     }
 
     private int findTextY() {
-        return (terminalSize.getRows() - textHeight) / 2;
+        return (terminalSize.getRows() - textHeight) / 2 + yShift;
     }
 }
