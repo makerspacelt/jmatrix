@@ -22,14 +22,14 @@ public class Droplet {
         return SingleWidthCharacter.getChar(CharColor.GREEN_1, false, CHARS[r.nextInt(CHARS.length)]);
     }
 
-    private int x;
+    private final int x;
     private float y;
-    private float velocity;
-    private float yStep;
+    private final float velocity;
+    private final float yStep;
 
-    private int length;
+    private final int length;
 
-    private TextCharacter[] characters;
+    private final TextCharacter[] characters;
 
     private Consumer<Droplet> onExit;
 

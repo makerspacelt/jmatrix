@@ -53,7 +53,7 @@ public class Matrix {
 
     public Matrix(Executor exec, List<TextUpdater> textUpdaters, InputStream ttyIn, OutputStream ttyOut) {
         this.exec = exec;
-        this.textUpdaters = new ArrayList<>(textUpdaters);
+        this.textUpdaters = textUpdaters != null ? new ArrayList<>(textUpdaters) : List.of();
 
         this.ttyIn = ttyIn;
         this.ttyOut = ttyOut;
@@ -74,7 +74,7 @@ public class Matrix {
 
         private final Random r = new Random();
 
-        private final List<Droplet> droplets = new ArrayList<>(1000);
+        private final List<Droplet> droplets = new LinkedList<>();
         private final Set<Droplet> absolete = Collections.newSetFromMap(new IdentityHashMap<>());
 
         @Override
