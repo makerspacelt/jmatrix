@@ -39,11 +39,14 @@ public class Droplet {
         this.velocity = abs(velocity);
         this.yStep = 10 * this.velocity;
 
-        this.characters = new TextCharacter[length];
+        this.characters = new TextCharacter[length + 5];
 
         Random r = ThreadLocalRandom.current();
         for (int i = 0; i < length; i++) {
             this.characters[i] = getNextChar(r);
+        }
+        for (int i = 0; i < 5; i++) {
+            this.characters[length - i] = SingleWidthCharacter.getChar(' ');
         }
         characters[0] = withColor(characters[0], WHITE);
     }
